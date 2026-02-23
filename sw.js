@@ -1,6 +1,6 @@
 self.addEventListener("install",e=>{
  e.waitUntil(
-  caches.open("gdl-news").then(c=>c.addAll(["./"]))
+  caches.open("mencho-news").then(c=>c.addAll(["./"]))
  );
 });
 
