@@ -1,0 +1,11 @@
+{
+  "name":"Noticias del Mencho",
+  "short_name":"Mencho News",
+  "start_url":"./",
+  "display":"standalone",
+  "background_color":"#000000",
+  "theme_color":"#dc3545",
+  "icons":[
+    {"src":"icon.png","sizes":"192x192","type":"image/png"}
+  ]
+}
