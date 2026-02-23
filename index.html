@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Noticias El Mencho</title>
+<title>Mencho News Bot</title>
 
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#dc3545">
@@ -13,53 +13,70 @@ body{font-family:Arial;background:#111;color:white;padding:10px;}
 h1{text-align:center;color:#dc3545;}
 .card{background:#222;padding:10px;margin:10px;border-radius:10px;}
 a{color:#0d6efd;text-decoration:none;font-weight:bold;}
-input{width:100%;padding:8px;border-radius:5px;border:none;margin-bottom:10px;}
+#alerta{background:red;padding:10px;text-align:center;display:none;}
 </style>
 </head>
 <body>
 
-<h1>📰 Noticias del Mencho</h1>
-<input id="busqueda" placeholder="Buscar palabra (CJNG, captura, Jalisco)">
-
+<div id="alerta">🚨 NUEVA NOTICIA DETECTADA</div>
+<h1>📰 Mencho News Bot</h1>
 <div id="news">Cargando...</div>
 
 <script>
-function cargarNoticias(q="El Mencho CJNG Jalisco narcotrafico"){
- const url="https://api.allorigins.win/get?url="+
- encodeURIComponent(`https://news.google.com/rss/search?q=${encodeURIComponent(q)}&hl=es-419&gl=MX&ceid=MX:es`);
+let ultimaNoticia="";
 
- fetch(url)
- .then(r=>r.json())
- .then(d=>{
-   const parser=new DOMParser();
-   const xml=parser.parseFromString(d.contents,"text/xml");
-   const items=xml.querySelectorAll("item");
-   let html="";
-   items.forEach(n=>{
-     html+=`
-     <div class="card">
-       <h3>${n.querySelector("title").textContent}</h3>
-       <p>${n.querySelector("pubDate").textContent}</p>
-       <a href="${n.querySelector("link").textContent}" target="_blank">Leer noticia</a>
-     </div>`;
-   });
-   document.getElementById("news").innerHTML=html;
+async function cargarNoticias(){
+ const url="https://api.allorigins.win/get?url="+
+ encodeURIComponent("https://news.google.com/rss/search?q=El%20Mencho%20CJNG&hl=es-419&gl=MX&ceid=MX:es");
+
+ const r=await fetch(url);
+ const d=await r.json();
+ const parser=new DOMParser();
+ const xml=parser.parseFromString(d.contents,"text/xml");
+ const items=xml.querySelectorAll("item");
+
+ let html="";
+ let primera = items[0].querySelector("title").textContent;
+
+ // alerta si cambia noticia
+ if(ultimaNoticia && ultimaNoticia !== primera){
+   document.getElementById("alerta").style.display="block";
+   enviarNotificacion(primera);
+ }
+
+ ultimaNoticia = primera;
+
+ items.forEach(n=>{
+   html+=`
+   <div class="card">
+     <h3>${n.querySelector("title").textContent}</h3>
+     <p>${n.querySelector("pubDate").textContent}</p>
+     <a href="${n.querySelector("link").textContent}" target="_blank">Leer</a>
+   </div>`;
  });
+
+ document.getElementById("news").innerHTML=html;
 }
 
+// refresh automático cada 30 segundos
+setInterval(cargarNoticias,30000);
 cargarNoticias();
-
-// buscador manual
-document.getElementById("busqueda").addEventListener("keyup",e=>{
- if(e.key==="Enter"){
-   cargarNoticias(e.target.value);
- }
-});
 </script>
 
 <script>
 if('serviceWorker' in navigator){
  navigator.serviceWorker.register("sw.js");
+}
+
+// pedir permiso notificaciones
+Notification.requestPermission();
+function enviarNotificacion(titulo){
+ if(Notification.permission==="granted"){
+   new Notification("🚨 Nueva noticia Mencho",{
+     body: titulo,
+     icon:"icon.png"
+   });
+ }
 }
 </script>
 
