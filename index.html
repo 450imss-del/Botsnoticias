@@ -8,118 +8,71 @@
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#dc3545">
 
-<!-- Estilos modernos y animaciones -->
 <style>
-body{
-  font-family: 'Arial', sans-serif;
-  background:#111;
-  color:white;
-  margin:0;
-  padding:0;
-}
-header{
-  background:#dc3545;
-  color:white;
-  padding:20px;
-  text-align:center;
-}
-#alerta{
-  background:#ff4444;
-  color:white;
-  text-align:center;
-  padding:10px;
-  display:none;
-  font-weight:bold;
-  animation: flash 1s infinite;
-}
-@keyframes flash{
-  0%,100%{opacity:1;}
-  50%{opacity:0.5;}
-}
-#busqueda{
-  width:90%;
-  max-width:500px;
-  padding:10px;
-  margin:10px auto;
-  display:block;
-  border-radius:5px;
-  border:none;
-  font-size:16px;
-}
-#news{
-  display:flex;
-  flex-wrap:wrap;
-  justify-content:center;
-  padding:10px;
-}
-.card{
-  background:#222;
-  border-radius:10px;
-  margin:10px;
-  width:300px;
-  box-shadow:0 0 10px #000;
-  overflow:hidden;
-  transition: transform 0.2s, box-shadow 0.2s;
-  cursor:pointer;
-}
-.card:hover{
-  transform: scale(1.03);
-  box-shadow:0 0 20px #dc3545;
-}
-.card img{
-  width:100%;
-  height:170px;
-  object-fit:cover;
-}
-.card .content{
-  padding:10px;
-}
-.card h3{
-  margin:0 0 5px 0;
-  font-size:18px;
-}
-.card p{
-  font-size:14px;
-  color:#ccc;
-}
-.card a{
-  color:#0d6efd;
-  text-decoration:none;
-  font-weight:bold;
-  display:block;
-  margin-top:5px;
-}
+body{font-family:Arial,sans-serif;background:#111;color:white;margin:0;padding:0;}
+header{background:#dc3545;color:white;padding:20px;text-align:center;}
+#alerta{background:#ff4444;color:white;text-align:center;padding:10px;display:none;font-weight:bold;animation: flash 1s infinite;}
+@keyframes flash{0%,100%{opacity:1;}50%{opacity:0.5;}}
+#busqueda{width:90%;max-width:500px;padding:10px;margin:10px auto;display:block;border-radius:5px;border:none;font-size:16px;}
+#news{display:flex;flex-wrap:wrap;justify-content:center;padding:10px;}
+.card{background:#222;border-radius:10px;margin:10px;width:300px;box-shadow:0 0 10px #000;overflow:hidden;transition: transform 0.2s, box-shadow 0.2s;cursor:pointer;}
+.card:hover{transform: scale(1.03);box-shadow:0 0 20px #dc3545;}
+.card img{width:100%;height:170px;object-fit:cover;}
+.card .content{padding:10px;}
+.card h3{margin:0 0 5px 0;font-size:18px;}
+.card p{font-size:14px;color:#ccc;}
+.card a{color:#0d6efd;text-decoration:none;font-weight:bold;display:block;margin-top:5px;}
+#instalarBtn{position:fixed;bottom:20px;right:20px;padding:10px;background:#dc3545;color:white;border:none;border-radius:5px;font-weight:bold;cursor:pointer;display:none;z-index:1000;}
 </style>
 </head>
 <body>
 
-<header>
-<h1>📰 Mencho News Bot</h1>
-</header>
-
+<header><h1>📰 Mencho News Bot</h1></header>
 <div id="alerta">🚨 NUEVA NOTICIA DETECTADA</div>
-
 <input type="text" id="busqueda" placeholder="Buscar palabra (CJNG, captura, Jalisco...)">
-
 <div id="news">Cargando noticias...</div>
+<button id="instalarBtn">📲 Instalar App</button>
 
 <script>
+// ---- Configuración de fuentes RSS ----
+const rssSources = [
+ "https://news.google.com/rss/search?q=El+Mencho",
+ "https://news.google.com/rss/search?q=CJNG+site:milenio.com",
+ "https://news.google.com/rss/search?q=El+Mencho+site:reforma.com",
+ "https://news.google.com/rss/search?q=CJNG+site:eluniversal.com.mx"
+];
+
 let ultimaNoticia="";
 
+// Función para cargar noticias de todas las fuentes
 async function cargarNoticias(query="El Mencho CJNG Jalisco narcotrafico"){
-  const url="https://api.allorigins.win/get?url="+
-    encodeURIComponent(`https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=es-419&gl=MX&ceid=MX:es`);
-  
-  const res = await fetch(url);
-  const data = await res.json();
-  const parser = new DOMParser();
-  const xml = parser.parseFromString(data.contents,"text/xml");
-  const items = xml.querySelectorAll("item");
-  
-  let html="";
-  const primera = items[0]?.querySelector("title")?.textContent;
+  let noticias = [];
+  for(const src of rssSources){
+    const url = `https://api.allorigins.win/get?url=${encodeURIComponent(src)}`;
+    try{
+      const r = await fetch(url);
+      const d = await r.json();
+      const parser = new DOMParser();
+      const xml = parser.parseFromString(d.contents,"text/xml");
+      xml.querySelectorAll("item").forEach(n=>{
+        noticias.push({
+          title: n.querySelector("title")?.textContent,
+          link: n.querySelector("link")?.textContent,
+          date: n.querySelector("pubDate")?.textContent
+        });
+      });
+    }catch(e){console.log("Error cargando RSS:",src);}
+  }
+
+  // Filtrar por busqueda
+  const busqueda = document.getElementById("busqueda").value;
+  if(busqueda) noticias = noticias.filter(n=>n.title.toLowerCase().includes(busqueda.toLowerCase()));
+
+  // Ordenar por fecha
+  noticias.sort((a,b)=>new Date(b.date)-new Date(a.date));
 
   // Alerta si hay noticia nueva
+  const primera = noticias[0]?.title;
   if(ultimaNoticia && ultimaNoticia !== primera){
     document.getElementById("alerta").style.display="block";
     enviarNotificacion(primera);
@@ -127,35 +80,28 @@ async function cargarNoticias(query="El Mencho CJNG Jalisco narcotrafico"){
   }
   ultimaNoticia = primera;
 
-  items.forEach(n=>{
-    const titulo = n.querySelector("title")?.textContent;
-    const fecha = n.querySelector("pubDate")?.textContent;
-    const link = n.querySelector("link")?.textContent;
-    const img = n.querySelector("media\\:thumbnail, thumbnail")?.getAttribute("url") || "";
-
+  // Renderizar tarjetas
+  let html="";
+  noticias.forEach(n=>{
     html+=`
-    <div class="card" onclick="window.open('${link}','_blank')">
-      ${img ? `<img src="${img}">` : ""}
+    <div class="card" onclick="window.open('${n.link}','_blank')">
       <div class="content">
-        <h3>${titulo}</h3>
-        <p>${fecha}</p>
-        <a href="${link}" target="_blank">Leer noticia</a>
+        <h3>${n.title}</h3>
+        <p>${n.date}</p>
+        <a href="${n.link}" target="_blank">Leer noticia</a>
       </div>
     </div>`;
   });
-
   document.getElementById("news").innerHTML=html;
 }
 
 // Refresh automático cada 30 segundos
-setInterval(()=>cargarNoticias(document.getElementById("busqueda").value || "El Mencho CJNG Jalisco narcotrafico"),30000);
+setInterval(()=>cargarNoticias(),30000);
 cargarNoticias();
 
-// Buscador manual
-document.getElementById("busqueda").addEventListener("keyup",e=>{
-  if(e.key==="Enter"){
-    cargarNoticias(e.target.value);
-  }
+// Buscador
+document.getElementById("busqueda").addEventListener("keyup", e=>{
+  if(e.key==="Enter") cargarNoticias();
 });
 
 // Notificaciones
@@ -164,16 +110,24 @@ if('Notification' in window){
 }
 function enviarNotificacion(titulo){
   if(Notification.permission==="granted"){
-    new Notification("🚨 Nueva noticia Mencho",{
-      body: titulo,
-      icon:"icon.png"
-    });
+    new Notification("🚨 Nueva noticia Mencho",{body:titulo,icon:"icon.png"});
   }
 }
-</script>
 
-<script>
-// Service Worker para PWA
+// ---- Instalación PWA ----
+let deferredPrompt;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+  const btn = document.getElementById("instalarBtn");
+  btn.style.display = "block";
+  btn.addEventListener('click', ()=>{
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.then(()=>{btn.style.display='none';});
+  });
+});
+
+// Service Worker
 if('serviceWorker' in navigator){
   navigator.serviceWorker.register("sw.js");
 }
