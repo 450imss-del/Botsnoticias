@@ -8,75 +8,174 @@
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#dc3545">
 
+<!-- Estilos modernos y animaciones -->
 <style>
-body{font-family:Arial;background:#111;color:white;padding:10px;}
-h1{text-align:center;color:#dc3545;}
-.card{background:#222;padding:10px;margin:10px;border-radius:10px;}
-a{color:#0d6efd;text-decoration:none;font-weight:bold;}
-#alerta{background:red;padding:10px;text-align:center;display:none;}
+body{
+  font-family: 'Arial', sans-serif;
+  background:#111;
+  color:white;
+  margin:0;
+  padding:0;
+}
+header{
+  background:#dc3545;
+  color:white;
+  padding:20px;
+  text-align:center;
+}
+#alerta{
+  background:#ff4444;
+  color:white;
+  text-align:center;
+  padding:10px;
+  display:none;
+  font-weight:bold;
+  animation: flash 1s infinite;
+}
+@keyframes flash{
+  0%,100%{opacity:1;}
+  50%{opacity:0.5;}
+}
+#busqueda{
+  width:90%;
+  max-width:500px;
+  padding:10px;
+  margin:10px auto;
+  display:block;
+  border-radius:5px;
+  border:none;
+  font-size:16px;
+}
+#news{
+  display:flex;
+  flex-wrap:wrap;
+  justify-content:center;
+  padding:10px;
+}
+.card{
+  background:#222;
+  border-radius:10px;
+  margin:10px;
+  width:300px;
+  box-shadow:0 0 10px #000;
+  overflow:hidden;
+  transition: transform 0.2s, box-shadow 0.2s;
+  cursor:pointer;
+}
+.card:hover{
+  transform: scale(1.03);
+  box-shadow:0 0 20px #dc3545;
+}
+.card img{
+  width:100%;
+  height:170px;
+  object-fit:cover;
+}
+.card .content{
+  padding:10px;
+}
+.card h3{
+  margin:0 0 5px 0;
+  font-size:18px;
+}
+.card p{
+  font-size:14px;
+  color:#ccc;
+}
+.card a{
+  color:#0d6efd;
+  text-decoration:none;
+  font-weight:bold;
+  display:block;
+  margin-top:5px;
+}
 </style>
 </head>
 <body>
 
-<div id="alerta">🚨 NUEVA NOTICIA DETECTADA</div>
+<header>
 <h1>📰 Mencho News Bot</h1>
-<div id="news">Cargando...</div>
+</header>
+
+<div id="alerta">🚨 NUEVA NOTICIA DETECTADA</div>
+
+<input type="text" id="busqueda" placeholder="Buscar palabra (CJNG, captura, Jalisco...)">
+
+<div id="news">Cargando noticias...</div>
 
 <script>
 let ultimaNoticia="";
 
-async function cargarNoticias(){
- const url="https://api.allorigins.win/get?url="+
- encodeURIComponent("https://news.google.com/rss/search?q=El%20Mencho%20CJNG&hl=es-419&gl=MX&ceid=MX:es");
+async function cargarNoticias(query="El Mencho CJNG Jalisco narcotrafico"){
+  const url="https://api.allorigins.win/get?url="+
+    encodeURIComponent(`https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=es-419&gl=MX&ceid=MX:es`);
+  
+  const res = await fetch(url);
+  const data = await res.json();
+  const parser = new DOMParser();
+  const xml = parser.parseFromString(data.contents,"text/xml");
+  const items = xml.querySelectorAll("item");
+  
+  let html="";
+  const primera = items[0]?.querySelector("title")?.textContent;
 
- const r=await fetch(url);
- const d=await r.json();
- const parser=new DOMParser();
- const xml=parser.parseFromString(d.contents,"text/xml");
- const items=xml.querySelectorAll("item");
+  // Alerta si hay noticia nueva
+  if(ultimaNoticia && ultimaNoticia !== primera){
+    document.getElementById("alerta").style.display="block";
+    enviarNotificacion(primera);
+    setTimeout(()=>document.getElementById("alerta").style.display="none",5000);
+  }
+  ultimaNoticia = primera;
 
- let html="";
- let primera = items[0].querySelector("title").textContent;
+  items.forEach(n=>{
+    const titulo = n.querySelector("title")?.textContent;
+    const fecha = n.querySelector("pubDate")?.textContent;
+    const link = n.querySelector("link")?.textContent;
+    const img = n.querySelector("media\\:thumbnail, thumbnail")?.getAttribute("url") || "";
 
- // alerta si cambia noticia
- if(ultimaNoticia && ultimaNoticia !== primera){
-   document.getElementById("alerta").style.display="block";
-   enviarNotificacion(primera);
- }
+    html+=`
+    <div class="card" onclick="window.open('${link}','_blank')">
+      ${img ? `<img src="${img}">` : ""}
+      <div class="content">
+        <h3>${titulo}</h3>
+        <p>${fecha}</p>
+        <a href="${link}" target="_blank">Leer noticia</a>
+      </div>
+    </div>`;
+  });
 
- ultimaNoticia = primera;
-
- items.forEach(n=>{
-   html+=`
-   <div class="card">
-     <h3>${n.querySelector("title").textContent}</h3>
-     <p>${n.querySelector("pubDate").textContent}</p>
-     <a href="${n.querySelector("link").textContent}" target="_blank">Leer</a>
-   </div>`;
- });
-
- document.getElementById("news").innerHTML=html;
+  document.getElementById("news").innerHTML=html;
 }
 
-// refresh automático cada 30 segundos
-setInterval(cargarNoticias,30000);
+// Refresh automático cada 30 segundos
+setInterval(()=>cargarNoticias(document.getElementById("busqueda").value || "El Mencho CJNG Jalisco narcotrafico"),30000);
 cargarNoticias();
+
+// Buscador manual
+document.getElementById("busqueda").addEventListener("keyup",e=>{
+  if(e.key==="Enter"){
+    cargarNoticias(e.target.value);
+  }
+});
+
+// Notificaciones
+if('Notification' in window){
+  Notification.requestPermission();
+}
+function enviarNotificacion(titulo){
+  if(Notification.permission==="granted"){
+    new Notification("🚨 Nueva noticia Mencho",{
+      body: titulo,
+      icon:"icon.png"
+    });
+  }
+}
 </script>
 
 <script>
+// Service Worker para PWA
 if('serviceWorker' in navigator){
- navigator.serviceWorker.register("sw.js");
-}
-
-// pedir permiso notificaciones
-Notification.requestPermission();
-function enviarNotificacion(titulo){
- if(Notification.permission==="granted"){
-   new Notification("🚨 Nueva noticia Mencho",{
-     body: titulo,
-     icon:"icon.png"
-   });
- }
+  navigator.serviceWorker.register("sw.js");
 }
 </script>
 
