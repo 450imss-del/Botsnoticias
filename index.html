@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mencho News Bot</title>
+<title>News Bot</title>
 
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#dc3545">
@@ -43,8 +43,7 @@ const rssSources = [
  "https://news.google.com/rss/search?q=El+Mencho+site:eluniversal.com.mx&hl=es-419&gl=MX&ceid=MX:es"
 ];
 
-let ultimaNoticia="";
-let noticiasViejas = new Set(); // Guardar títulos para detectar nuevas
+let noticiasViejas = new Set();
 
 async function cargarNoticias() {
   let noticias = [];
@@ -69,15 +68,15 @@ async function cargarNoticias() {
   const busqueda = document.getElementById("busqueda").value;
   if(busqueda) noticias = noticias.filter(n=>n.title.toLowerCase().includes(busqueda.toLowerCase()));
 
-  // Detectar noticias nuevas
+  // Detectar noticias nuevas (solo las que no existían antes)
   noticias.forEach(n=>{
     if(!noticiasViejas.has(n.title)){
       n.isNew = true;
     }
   });
 
-  // Guardar títulos actuales
-  noticias.forEach(n=>noticiasViejas.add(n.title));
+  // Guardar títulos actuales para la siguiente carga
+  noticiasViejas = new Set(noticias.map(n=>n.title));
 
   // Ordenar: noticias nuevas primero
   noticias.sort((a,b)=>{
@@ -147,5 +146,6 @@ if('serviceWorker' in navigator){
   navigator.serviceWorker.register("sw.js");
 }
 </script>
+
 </body>
 </html>
