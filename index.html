@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>News Bot</title>
+<title>Mencho News Bot</title>
 
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#dc3545">
@@ -13,11 +13,9 @@ body{font-family:Arial,sans-serif;background:#111;color:white;margin:0;padding:0
 header{background:#dc3545;color:white;padding:20px;text-align:center;}
 #alerta{background:#ff4444;color:white;text-align:center;padding:10px;display:none;font-weight:bold;animation: flash 1s infinite;}
 @keyframes flash{0%,100%{opacity:1;}50%{opacity:0.5;}}
-#busqueda{width:90%;max-width:500px;padding:10px;margin:10px auto;display:block;border-radius:5px;border:none;font-size:16px;}
 #news{display:flex;flex-wrap:wrap;justify-content:center;padding:10px;}
 .card{background:#222;border-radius:10px;margin:10px;width:300px;box-shadow:0 0 10px #000;overflow:hidden;transition: transform 0.2s, box-shadow 0.2s;cursor:pointer;position:relative;}
 .card:hover{transform: scale(1.03);box-shadow:0 0 20px #dc3545;}
-.card img{width:100%;height:170px;object-fit:cover;}
 .card .content{padding:10px;}
 .card h3{margin:0 0 5px 0;font-size:18px;}
 .card p{font-size:14px;color:#ccc;}
@@ -28,19 +26,19 @@ header{background:#dc3545;color:white;padding:20px;text-align:center;}
 </head>
 <body>
 
-<header><h1>📰 Mencho News Bot</h1></header>
+<header><h1>📰 News Bot</h1></header>
 <div id="alerta">🚨 NUEVA NOTICIA DETECTADA</div>
-<input type="text" id="busqueda" placeholder="Buscar palabra dentro de noticias (opcional)">
 <div id="news">Cargando noticias...</div>
 <button id="instalarBtn">📲 Instalar App</button>
 
 <script>
-// Fuentes RSS (Google News en español)
+// Fuentes RSS ampliadas con todos los eventos relevantes del Mencho
 const rssSources = [
- "https://news.google.com/rss/search?q=El+Mencho&hl=es-419&gl=MX&ceid=MX:es",
- "https://news.google.com/rss/search?q=El+Mencho+site:milenio.com&hl=es-419&gl=MX&ceid=MX:es",
- "https://news.google.com/rss/search?q=El+Mencho+site:reforma.com&hl=es-419&gl=MX&ceid=MX:es",
- "https://news.google.com/rss/search?q=El+Mencho+site:eluniversal.com.mx&hl=es-419&gl=MX&ceid=MX:es"
+  "https://news.google.com/rss/search?q=El+Mencho+bloqueos&hl=es-419&gl=MX&ceid=MX:es",
+  "https://news.google.com/rss/search?q=El+Mencho+saqueos&hl=es-419&gl=MX&ceid=MX:es",
+  "https://news.google.com/rss/search?q=El+Mencho+incendios&hl=es-419&gl=MX&ceid=MX:es",
+  "https://news.google.com/rss/search?q=El+Mencho+operativos&hl=es-419&gl=MX&ceid=MX:es",
+  "https://news.google.com/rss/search?q=El+Mencho&hl=es-419&gl=MX&ceid=MX:es"
 ];
 
 let noticiasViejas = new Set();
@@ -54,38 +52,44 @@ async function cargarNoticias() {
       const parser = new DOMParser();
       const xml = parser.parseFromString(d.contents,"text/xml");
       xml.querySelectorAll("item").forEach(n=>{
-        noticias.push({
-          title: n.querySelector("title")?.textContent,
-          link: n.querySelector("link")?.textContent,
-          date: n.querySelector("pubDate")?.textContent,
-          isNew: false
-        });
+        const title = n.querySelector("title")?.textContent || "";
+        const link = n.querySelector("link")?.textContent;
+        const date = n.querySelector("pubDate")?.textContent;
+        if(title && link){
+          noticias.push({title, link, date, isNew: false});
+        }
       });
     }catch(e){console.log("Error cargando RSS:",src);}
   }
 
-  // Filtrar por busqueda opcional
-  const busqueda = document.getElementById("busqueda").value;
-  if(busqueda) noticias = noticias.filter(n=>n.title.toLowerCase().includes(busqueda.toLowerCase()));
+  // Eliminar duplicados (mismo título)
+  const unica = [];
+  const seen = new Set();
+  noticias.forEach(n=>{
+    if(!seen.has(n.title)){
+      seen.add(n.title);
+      unica.push(n);
+    }
+  });
+  noticias = unica;
 
-  // Detectar noticias nuevas (solo las que no existían antes)
+  // Detectar nuevas
   noticias.forEach(n=>{
     if(!noticiasViejas.has(n.title)){
       n.isNew = true;
     }
   });
 
-  // Guardar títulos actuales para la siguiente carga
   noticiasViejas = new Set(noticias.map(n=>n.title));
 
-  // Ordenar: noticias nuevas primero
+  // Ordenar: nuevas primero
   noticias.sort((a,b)=>{
     if(a.isNew && !b.isNew) return -1;
     if(!a.isNew && b.isNew) return 1;
     return new Date(b.date) - new Date(a.date);
   });
 
-  // Alerta si hay nueva noticia
+  // Alerta visual
   const primeraNueva = noticias.find(n=>n.isNew)?.title;
   if(primeraNueva){
     document.getElementById("alerta").style.display="block";
@@ -93,7 +97,7 @@ async function cargarNoticias() {
     setTimeout(()=>document.getElementById("alerta").style.display="none",5000);
   }
 
-  // Renderizar tarjetas
+  // Renderizar
   let html="";
   noticias.forEach(n=>{
     html+=`
@@ -106,19 +110,14 @@ async function cargarNoticias() {
       </div>
     </div>`;
   });
-  document.getElementById("news").innerHTML=html;
+  document.getElementById("news").innerHTML = html;
 }
 
-// Refresh automático cada 30 segundos
+// Refresh automático
 setInterval(cargarNoticias,30000);
 cargarNoticias();
 
-// Buscador
-document.getElementById("busqueda").addEventListener("keyup", e=>{
-  if(e.key==="Enter") cargarNoticias();
-});
-
-// Notificaciones
+// Notificaciones push
 if('Notification' in window){
   Notification.requestPermission();
 }
@@ -128,9 +127,9 @@ function enviarNotificacion(titulo){
   }
 }
 
-// Botón de instalación PWA
+// Botón instalar PWA
 let deferredPrompt;
-window.addEventListener('beforeinstallprompt', (e) => {
+window.addEventListener('beforeinstallprompt', (e)=>{
   e.preventDefault();
   deferredPrompt = e;
   const btn = document.getElementById("instalarBtn");
@@ -146,6 +145,5 @@ if('serviceWorker' in navigator){
   navigator.serviceWorker.register("sw.js");
 }
 </script>
-
 </body>
 </html>
