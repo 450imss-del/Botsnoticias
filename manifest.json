@@ -1,6 +1,6 @@
 {
-  "name":"Noticias del Mencho",
-  "short_name":"Mencho News",
+  "name":"Mencho News Bot",
+  "short_name":"MenchoBot",
   "start_url":"./",
   "display":"standalone",
   "background_color":"#000000",
